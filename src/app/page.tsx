@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Music, MessageCircle, Signal, Send, X } from 'lucide-react';
-import { useState } from 'react';
+import { Mic, Music, MessageCircle, Signal, Send, X, Play } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAgora } from '@/hooks/useAgora';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 
@@ -11,9 +11,21 @@ export default function ListenerPage() {
   const [isSalamOpen, setIsSalamOpen] = useState(false);
   const [songInput, setSongInput] = useState({ title: '', artist: '' });
   const [salamText, setSalamText] = useState('');
+  const [hasInteracted, setHasInteracted] = useState(false);
   
-  const { joinState } = useAgora('mudik-live', 'audience');
+  const { joinState, remoteTracks } = useAgora('mudik-live', 'audience');
   const { addSongRequest, requestTalk, talkRequests, broadcastStatus } = useRealtimeData();
+
+  // Retry playing tracks when user interacts
+  useEffect(() => {
+    if (hasInteracted) {
+      remoteTracks.forEach(track => {
+        if (!track.isPlaying) {
+          track.play();
+        }
+      });
+    }
+  }, [hasInteracted, remoteTracks]);
 
   const handleRequestTalk = async () => {
     await requestTalk('Ditta');
@@ -32,6 +44,26 @@ export default function ListenerPage() {
   };
 
   const isCalling = talkRequests.some(r => r.listener_name === 'Ditta' && r.status === 'requested');
+
+  if (!hasInteracted) {
+    return (
+      <main className="min-h-screen bg-[#0f172a] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mb-8 animate-bounce shadow-[0_0_50px_-10px_rgba(37,99,235,1)]">
+          <Music size={40} className="text-white" />
+        </div>
+        <h1 className="text-4xl font-black mb-4 tracking-tighter">MUDIK LIVE</h1>
+        <p className="text-slate-400 mb-12 max-w-xs font-bold leading-relaxed">
+          Ketuk tombol di bawah agar browser mengizinkan pemutaran suara secara otomatis.
+        </p>
+        <button 
+          onClick={() => setHasInteracted(true)}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-5 rounded-full font-black text-xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+        >
+          <Play fill="currentColor" /> MULAI DENGARKAN
+        </button>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[#0f172a] text-white p-6 flex flex-col items-center justify-between overflow-hidden">
@@ -56,8 +88,11 @@ export default function ListenerPage() {
             {broadcastStatus?.is_on_air ? 'LIVE ON AIR' : 'RADIO STANDBY'}
           </span>
         </div>
-        <div className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-500/20">
-          HD AUDIO
+        <div className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-500/20 flex gap-2 items-center">
+          <span>HD AUDIO</span>
+          {remoteTracks.length > 0 && (
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+          )}
         </div>
       </motion.div>
 
