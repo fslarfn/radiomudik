@@ -5,10 +5,12 @@ import { Mic, MicOff, Music, Play, Volume2, Users, Radio, Signal, Check, X, Phon
 import { useState } from 'react';
 import { useAgora } from '@/hooks/useAgora';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { useSession, signIn } from 'next-auth/react';
 // Kita tidak perlu import supabase di sini lagi karena sudah di-handle di hook
 
 export default function HostDashboard() {
   const [isMicActive, setIsMicActive] = useState(true);
+  const { data: session } = useSession();
   const { localAudioTrack } = useAgora('mudik-live', 'host');
   const { requests, talkRequests, broadcastStatus, updateTalkStatus, markSongAsPlayed, toggleBroadcastStatus } = useRealtimeData();
 
@@ -35,6 +37,28 @@ export default function HostDashboard() {
     { label: 'AIRHORN', icon: '📣', color: 'bg-red-500' },
     { label: 'BOING', icon: '🎾', color: 'bg-orange-500' },
   ];
+
+  if (!session) {
+    return (
+      <main className="min-h-screen bg-[#020617] text-slate-200 p-8 flex flex-col items-center justify-center gap-8">
+         <div className="bg-slate-900/80 p-12 rounded-[40px] border border-slate-800 flex flex-col items-center max-w-md w-full text-center shadow-2xl">
+            <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-500/20">
+               <Music size={48} className="text-slate-900" />
+            </div>
+            <h1 className="text-3xl font-black text-white mb-2">HOST LOGIN</h1>
+            <p className="text-slate-400 text-sm mb-8 font-bold leading-relaxed">
+              Anda perlu login dengan akun Spotify Premium untuk bisa memutar lagu yang diminta pendengar.
+            </p>
+            <button 
+              onClick={() => signIn('spotify')}
+              className="w-full bg-green-500 hover:bg-green-400 text-slate-900 py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-green-500/20"
+            >
+              LOGIN SPOTIFY
+            </button>
+         </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[#020617] text-slate-200 p-8 flex flex-col gap-8">
