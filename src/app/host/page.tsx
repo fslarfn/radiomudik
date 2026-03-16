@@ -11,7 +11,7 @@ import { useSession, signIn } from 'next-auth/react';
 export default function HostDashboard() {
   const [isMicActive, setIsMicActive] = useState(true);
   const { data: session } = useSession();
-  const { localAudioTrack } = useAgora('mudik-live', 'host');
+  const { localAudioTrack, localScreenAudioTrack, startScreenAudioShare, stopScreenAudioShare } = useAgora('mudik-live', 'host');
   const { requests, talkRequests, broadcastStatus, updateTalkStatus, markSongAsPlayed, toggleBroadcastStatus } = useRealtimeData();
 
   const toggleBroadcast = async () => {
@@ -98,19 +98,37 @@ export default function HostDashboard() {
       <div className="grid grid-cols-12 gap-8 flex-1">
         {/* MIC & TOOLS */}
         <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
-          <button 
-            onClick={toggleMic}
-            className={`flex-1 rounded-[40px] flex flex-col items-center justify-center gap-6 border-b-8 active:border-b-0 active:translate-y-2 transition-all shadow-2xl ${
-              isMicActive 
-                ? 'bg-gradient-to-b from-blue-500 to-blue-700 border-blue-900 text-white' 
-                : 'bg-slate-800 border-slate-950 text-slate-600'
-            }`}
-          >
-            <div className={`p-8 rounded-full ${isMicActive ? 'bg-white/10' : 'bg-slate-900/50'}`}>
-              {isMicActive ? <Mic size={64} strokeWidth={3} /> : <MicOff size={64} strokeWidth={3} />}
-            </div>
-            <span className="text-2xl font-black tracking-widest">{isMicActive ? 'MIC ON' : 'MIC MUTED'}</span>
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={toggleMic}
+              className={`flex-1 rounded-[32px] flex flex-col items-center justify-center p-6 gap-4 border-b-8 active:border-b-0 active:translate-y-2 transition-all shadow-2xl ${
+                isMicActive 
+                  ? 'bg-gradient-to-b from-blue-500 to-blue-700 border-blue-900 text-white' 
+                  : 'bg-slate-800 border-slate-950 text-slate-600'
+              }`}
+            >
+              <div className={`p-4 rounded-full ${isMicActive ? 'bg-white/10' : 'bg-slate-900/50'}`}>
+                {isMicActive ? <Mic size={32} strokeWidth={3} /> : <MicOff size={32} strokeWidth={3} />}
+              </div>
+              <span className="text-sm font-black tracking-widest">{isMicActive ? 'MIC ON' : 'MIC OFF'}</span>
+            </button>
+
+            <button 
+              onClick={localScreenAudioTrack ? stopScreenAudioShare : startScreenAudioShare}
+              className={`flex-1 rounded-[32px] flex flex-col items-center justify-center p-6 gap-4 border-b-8 active:border-b-0 active:translate-y-2 transition-all shadow-2xl ${
+                localScreenAudioTrack 
+                  ? 'bg-gradient-to-b from-green-500 to-green-700 border-green-900 text-white' 
+                  : 'bg-slate-800 border-slate-950 text-slate-600'
+              }`}
+            >
+              <div className={`p-4 rounded-full ${localScreenAudioTrack ? 'bg-white/10' : 'bg-slate-900/50'}`}>
+                {localScreenAudioTrack ? <Volume2 size={32} strokeWidth={3} /> : <Music size={32} strokeWidth={3} />}
+              </div>
+              <span className="text-sm font-black tracking-tight text-center leading-tight">
+                {localScreenAudioTrack ? 'AUDIO SHARED' : 'SHARE PC AUDIO'}
+              </span>
+            </button>
+          </div>
 
           <div className="bg-slate-900 rounded-[32px] p-6 border border-slate-800">
              <h3 className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase mb-6 flex items-center gap-2">
