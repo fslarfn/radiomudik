@@ -16,8 +16,10 @@ export const useAgora = (channel: string, role: 'host' | 'audience') => {
   const [localScreenAudioTrack, setLocalScreenAudioTrack] = useState<ILocalAudioTrack | null>(null);
   const [remoteTracks, setRemoteTracks] = useState<IRemoteAudioTrack[]>([]);
   const [joinState, setJoinState] = useState(false);
+  const [isTalking, setIsTalking] = useState(false);
   
   const clientRef = useRef<IAgoraRTCClient | null>(null);
+  const talkMicRef = useRef<IMicrophoneAudioTrack | null>(null);
 
   useEffect(() => {
     // Pastikan ini hanya berjalan di browser
@@ -84,6 +86,10 @@ export const useAgora = (channel: string, role: 'host' | 'audience') => {
         if (localScreenAudioTrack) {
           localScreenAudioTrack.close();
         }
+        if (talkMicRef.current) {
+          talkMicRef.current.close();
+          talkMicRef.current = null;
+        }
         if (clientRef.current) {
           await clientRef.current.leave();
           clientRef.current = null;
@@ -143,13 +149,60 @@ export const useAgora = (channel: string, role: 'host' | 'audience') => {
     }
   };
 
+  // === Fitur Talk: Audience -> upgrade ke Host sementara ===
+  const startTalking = async () => {
+    if (!clientRef.current) return;
+
+    try {
+      const { default: AgoraRTC } = await import('agora-rtc-sdk-ng');
+      
+      // Switch role dari audience ke host agar bisa publish audio
+      await clientRef.current.setClientRole('host');
+      
+      // Buat microphone track
+      const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      talkMicRef.current = micTrack;
+      
+      // Publish microphone track
+      await clientRef.current.publish([micTrack]);
+      setIsTalking(true);
+      
+      console.log('Listener mulai berbicara (mic ON)');
+    } catch (error) {
+      console.error('Gagal memulai bicara:', error);
+    }
+  };
+
+  const stopTalking = async () => {
+    if (!clientRef.current) return;
+
+    try {
+      if (talkMicRef.current) {
+        await clientRef.current.unpublish([talkMicRef.current]);
+        talkMicRef.current.close();
+        talkMicRef.current = null;
+      }
+      
+      // Kembali ke audience
+      await clientRef.current.setClientRole('audience');
+      setIsTalking(false);
+      
+      console.log('Listener berhenti berbicara (mic OFF)');
+    } catch (error) {
+      console.error('Gagal berhenti bicara:', error);
+    }
+  };
+
   return {
     localAudioTrack,
     localScreenAudioTrack,
     remoteTracks,
     joinState,
+    isTalking,
     client: clientRef.current,
     startScreenAudioShare,
-    stopScreenAudioShare
+    stopScreenAudioShare,
+    startTalking,
+    stopTalking
   };
 };

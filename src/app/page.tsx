@@ -13,8 +13,8 @@ export default function ListenerPage() {
   const [salamText, setSalamText] = useState('');
   const [hasInteracted, setHasInteracted] = useState(false);
   
-  const { joinState, remoteTracks } = useAgora('mudik-live', 'audience');
-  const { addSongRequest, requestTalk, talkRequests, broadcastStatus } = useRealtimeData();
+  const { joinState, remoteTracks, isTalking, startTalking, stopTalking } = useAgora('mudik-live', 'audience');
+  const { addSongRequest, requestTalk, talkRequests, broadcastStatus, updateTalkStatus } = useRealtimeData();
 
   // Retry playing tracks when user interacts
   useEffect(() => {
@@ -27,8 +27,28 @@ export default function ListenerPage() {
     }
   }, [hasInteracted, remoteTracks]);
 
+  // Watch for talk request being accepted by host
+  const myTalkRequest = talkRequests.find(r => r.listener_name === 'Ditta');
+  const isAccepted = myTalkRequest?.status === 'accepted';
+  const isCalling = myTalkRequest?.status === 'requested';
+
+  useEffect(() => {
+    if (isAccepted && !isTalking) {
+      startTalking();
+    }
+  }, [isAccepted]);
+
   const handleRequestTalk = async () => {
     await requestTalk('Ditta');
+  };
+
+  const handleHangUp = async () => {
+    // Stop mic
+    await stopTalking();
+    // Update status di Supabase menjadi 'finished'
+    if (myTalkRequest) {
+      await updateTalkStatus(myTalkRequest.id, 'finished');
+    }
   };
 
   const handleSendRequest = async () => {
@@ -42,8 +62,6 @@ export default function ListenerPage() {
       setIsJukeboxOpen(false);
     }
   };
-
-  const isCalling = talkRequests.some(r => r.listener_name === 'Ditta' && r.status === 'requested');
 
   if (!hasInteracted) {
     return (
@@ -131,19 +149,30 @@ export default function ListenerPage() {
 
       {/* Safe-Driving Interaction Buttons */}
       <div className="w-full max-w-sm flex flex-col gap-4 mb-2">
-        <motion.button
-          whileTap={{ scale: 0.92 }}
-          onClick={handleRequestTalk}
-          disabled={isCalling}
-          className={`h-24 rounded-[32px] flex items-center justify-center gap-4 text-2xl font-black shadow-2xl transition-all border-b-8 active:border-b-0 active:translate-y-1 ${
-            isCalling 
-              ? 'bg-slate-700 border-slate-900 text-slate-500 cursor-not-allowed' 
-              : 'bg-gradient-to-r from-orange-500 to-red-600 border-red-800 text-white shadow-orange-500/20'
-          }`}
-        >
-          <Mic size={32} />
-          {isCalling ? 'DITUNGGU HOST...' : 'MAU NGOBROL'}
-        </motion.button>
+        {isTalking ? (
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={handleHangUp}
+            className="h-24 rounded-[32px] flex items-center justify-center gap-4 text-2xl font-black shadow-2xl transition-all border-b-8 active:border-b-0 active:translate-y-1 bg-gradient-to-r from-green-500 to-emerald-600 border-green-800 text-white shadow-green-500/20 animate-pulse"
+          >
+            <Mic size={32} />
+            SEDANG NGOBROL — TAP UNTUK TUTUP
+          </motion.button>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={handleRequestTalk}
+            disabled={isCalling}
+            className={`h-24 rounded-[32px] flex items-center justify-center gap-4 text-2xl font-black shadow-2xl transition-all border-b-8 active:border-b-0 active:translate-y-1 ${
+              isCalling 
+                ? 'bg-slate-700 border-slate-900 text-slate-500 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-orange-500 to-red-600 border-red-800 text-white shadow-orange-500/20'
+            }`}
+          >
+            <Mic size={32} />
+            {isCalling ? 'DITUNGGU HOST...' : 'MAU NGOBROL'}
+          </motion.button>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <motion.button
