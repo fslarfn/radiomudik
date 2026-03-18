@@ -15,7 +15,7 @@ export default function ListenerPage() {
   const [micGranted, setMicGranted] = useState(false);
   
   const { joinState, remoteTracks, isTalking, startTalking, stopTalking } = useAgora('mudik-live', 'audience');
-  const { addSongRequest, requestTalk, talkRequests, broadcastStatus, updateTalkStatus } = useRealtimeData();
+  const { addSongRequest, requestTalk, talkRequests, broadcastStatus, updateTalkStatus, sendSalam } = useRealtimeData();
 
   // Retry playing tracks when user interacts
   useEffect(() => {
@@ -397,7 +397,13 @@ export default function ListenerPage() {
               onChange={(e) => setSalamText(e.target.value)}
             />
             <button 
-              onClick={() => { setIsSalamOpen(false); setSalamText(''); }}
+              onClick={async () => { 
+                if (salamText.trim()) {
+                  await sendSalam('Ditta', salamText.trim());
+                }
+                setIsSalamOpen(false); 
+                setSalamText(''); 
+              }}
               className="bg-gradient-to-r from-rose-500 to-pink-500 py-5 rounded-2xl font-black text-lg shadow-lg shadow-rose-500/20 flex items-center justify-center gap-3 text-white"
             >
               <Send size={18} /> KIRIM SALAM

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { SongRequest, TalkRequest, BroadcastStatus } from '@/types';
+import { SongRequest, TalkRequest, BroadcastStatus, Salam } from '@/types';
 
 export const useRealtimeData = () => {
   const [requests, setRequests] = useState<SongRequest[]>([]);
   const [talkRequests, setTalkRequests] = useState<TalkRequest[]>([]);
+  const [salams, setSalams] = useState<Salam[]>([]);
   const [broadcastStatus, setBroadcastStatus] = useState<BroadcastStatus | null>(null);
 
   useEffect(() => {
@@ -27,9 +28,16 @@ export const useRealtimeData = () => {
         const { data: talk } = await supabase
           .from('talk_requests')
           .select('*')
-          .eq('status', 'requested')
+          .in('status', ['requested', 'accepted'])
           .order('created_at', { ascending: false });
         if (talk) setTalkRequests(talk);
+
+        const { data: salamData } = await supabase
+          .from('salams')
+          .select('*')
+          .eq('is_read', false)
+          .order('created_at', { ascending: false });
+        if (salamData) setSalams(salamData);
 
         const { data: status } = await supabase
           .from('broadcast_status')
@@ -65,7 +73,25 @@ export const useRealtimeData = () => {
           if (payload.eventType === 'INSERT') {
             setTalkRequests(prev => [payload.new as TalkRequest, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
-            setTalkRequests(prev => prev.filter(r => r.id !== payload.new.id || payload.new.status === 'requested'));
+            const updated = payload.new as TalkRequest;
+            if (updated.status === 'finished' || updated.status === 'rejected') {
+              // Hapus dari daftar jika sudah selesai/ditolak
+              setTalkRequests(prev => prev.filter(r => r.id !== updated.id));
+            } else {
+              // Update in-place (termasuk saat status menjadi 'accepted')
+              setTalkRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'salams' },
+        (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            setSalams(prev => [payload.new as Salam, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setSalams(prev => prev.map(s => s.id === payload.new.id ? payload.new as Salam : s));
           }
         }
       )
@@ -106,14 +132,25 @@ export const useRealtimeData = () => {
     return await supabase.from('broadcast_status').update({ is_on_air: newStatus }).eq('id', broadcastStatus.id);
   };
 
+  const sendSalam = async (senderName: string, message: string) => {
+    return await supabase.from('salams').insert([{ sender_name: senderName, message, is_read: false }]);
+  };
+
+  const markSalamRead = async (id: string) => {
+    return await supabase.from('salams').update({ is_read: true }).eq('id', id);
+  };
+
   return {
     requests,
     talkRequests,
+    salams,
     broadcastStatus,
     addSongRequest,
     requestTalk,
     updateTalkStatus,
     markSongAsPlayed,
-    toggleBroadcastStatus
+    toggleBroadcastStatus,
+    sendSalam,
+    markSalamRead
   };
 };

@@ -21,3 +21,11 @@ export interface TalkRequest {
   status: 'requested' | 'accepted' | 'rejected' | 'finished';
   created_at: string;
 }
+
+export interface Salam {
+  id: string;
+  sender_name: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
